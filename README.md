@@ -41,25 +41,38 @@
 
 ## 2일차 완료 내용
 
-* ✅ Python 개발 환경 및 FastAPI 서버 구성을 완료했습니다.
-* ✅ `/health`, `/jobs`, `/analyze` API 엔드포인트를 구현했습니다.
-* ✅ Gemini 2.5 Flash-Lite API를 연동해 AI 응답 기반을 구축했습니다.
-* ✅ `MOCK_MODE` 환경변수를 적용해 API 없이도 테스트 가능한 환경을 구성했습니다.
-* ✅ 백엔드 기본 구조를 완성하고 이후 RAG 기능 구현을 위한 기반을 마련했습니다.
+| 항목 | 내용 |
+|------|------|
+| ✅ 개발 환경 | Python 가상환경 및 FastAPI 서버 구성 |
+| ✅ API 엔드포인트 | `/health`, `/jobs`, `/analyze` 구현 |
+| ✅ AI 연동 | Gemini 2.5 Flash-Lite API 연결 |
+| ✅ Mock Mode | `MOCK_MODE` 환경변수로 API 없이 테스트 가능 |
+| ✅ 기반 구축 | RAG 기능 구현을 위한 백엔드 구조 완성 |
 
-# 2일차 알게된 내용
-# Mock mode
-API가 아플때 서비스 중단 막는 안전망
+---
 
-# 백엔드 : fastAPI(손님 테이블 키오스크 뒷단)
-CRUD가 핵심 (create, read, update, delete기능)
-fastAPI가 손님정보를 주방으로 잘 전달
+## 2일차 학습 내용
 
-## 프론트엔드 : React (키오스크화면)
-React -> FastAPI -> DB/AI 순서인데 프론트랑 백엔드 이어주는게 미들웨어(CORSMilddleware)
+### Mock Mode
+> API가 다운됐을 때 서비스 중단을 막는 안전망
+> `MOCK_MODE=true` 설정 시 실제 API 호출 없이 목업 응답 반환
 
-라우터는 손님 요청 분류기임(한식, 중식 코너별 안내)
-목업데이터는 임시데이터임.
+### 백엔드: FastAPI
+> 손님 테이블 키오스크의 뒷단 — 요청을 받아 주방(DB/AI)으로 전달
+
+- **CRUD** 가 핵심: Create / Read / Update / Delete
+- 사용자 요청을 검증하고 DB·AI로 전달하는 역할
+
+### 프론트엔드: React
+> 키오스크 화면 — 사용자가 직접 보고 조작하는 영역
+
+```
+React (화면) → FastAPI (처리) → DB / AI (저장·분석)
+```
+
+- **미들웨어 (CORSMiddleware)**: 프론트와 백엔드를 이어주는 검문소
+- **라우터**: 손님 요청을 담당 코너로 분류하는 안내판 (한식 → `/jobs`, 양식 → `/analyze`)
+- **목업 데이터**: 실제 DB 연결 전 사용하는 임시 가짜 데이터
 
 
 - [ ] 3일차: 데이터 파이프라인 구축
