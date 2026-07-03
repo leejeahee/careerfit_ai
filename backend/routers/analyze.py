@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 from typing import List
 
+from services.llm_service import get_llm_response
+
 router = APIRouter()
 
 # 요청 본문(Request Body) 모델
@@ -48,22 +50,21 @@ def analyze_career(request: AnalyzeRequest):
 
     """
 
-    # 임시 목업 응답: 실습 8에서 실제 Gemini + RAG 응답으로 교체한다
-
-    mock_answer = (
-
-        f"{request.major} 학생으로서 {request.job_type} 직무에 지원하려면, "
-
-        f"현재 보유하신 {', '.join(request.skills)} 역량을 바탕으로 "
-
-        f"다음과 같은 준비를 추천드립니다. (목업 응답 — 실습 8에서 Gemini로 교체)"
-
+    # 사용자가 입력한 데이터를 바탕으로 LLM에 전달할 질문(query)을 생성합니다.
+    query = (
+        f"전공: {request.major}\n"
+        f"보유 스킬: {', '.join(request.skills)}\n"
+        f"관심 직무: {request.job_type}\n"
+        f"경력: {request.experience_years}년\n"
+        f"선호 기업 형태: {request.preferred_company_size}"
     )
 
-    mock_sources = [
-        {"title": "목업 데이터 — 테크스타트업A 데이터 분석가", "content": "요구 스킬: Python, SQL, 통계"}
-    ]
+    # 생성된 질문과 빈 문서 목록을 LLM 서비스에 전달하여 응답을 받습니다.
+    llm_result = get_llm_response(query=query, context_docs=[])
 
-    return AnalyzeResponse(answer=mock_answer, sources=mock_sources)
+    return AnalyzeResponse(
+        answer=llm_result["answer"], 
+        sources=llm_result["sources"]
+    )
 
 
