@@ -66,10 +66,21 @@ pip install -r requirements.txt
 ```
 
 ### 2. 환경 변수 설정
-`backend` 폴더 내에 `.env` 파일을 생성하고 다음 값을 입력합니다. (또는 `.env.example` 복사)
+`backend` 폴더 내에 `.env` 파일을 생성하고 다음 값을 입력합니다.
 ```ini
+# 사용할 provider의 API Key만 채우면 됩니다
 GEMINI_API_KEY=당신의_제미나이_API_키
+MISTRAL_API_KEY=당신의_미스트랄_API_키
+HUGGINGFACE_TOKEN=당신의_허깅페이스_토큰
+
 MOCK_MODE=false
+
+# gemini-2.5-flash-lite / mistral-small-latest /
+# ollama:llama3.2:3b / huggingface:모델제공자/모델이름 중 택 1
+LLM_MODEL=gemini-2.5-flash-lite
+
+# Ollama 사용 시 로컬 서버 주소 (기본값 그대로 두면 됨)
+OLLAMA_BASE_URL=http://localhost:11434
 ```
 
 ### 3. 백엔드 서버 실행
@@ -77,6 +88,14 @@ MOCK_MODE=false
 uvicorn main:app --reload --port 8000
 ```
 > 서버가 실행되면 `http://localhost:8000/docs` 에서 Swagger UI를 통해 API 테스트가 가능합니다!
+
+### 4. 프론트엔드 실행
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+> `http://localhost:5173` 에서 화면을 확인할 수 있습니다. (백엔드가 8000번 포트에서 먼저 실행 중이어야 합니다)
 
 ---
 
@@ -96,8 +115,38 @@ uvicorn main:app --reload --port 8000
 | ✅ API 엔드포인트 | `/health`, `/analyze` 구현 |
 | ✅ AI 연동 | Gemini/Mistral/Ollama/HuggingFace 4개 Provider 지원 |
 | ✅ Mock Mode | `MOCK_MODE` 환경변수로 API 없이 테스트 가능 |
-| ✅ RAG 구축 | ChromaDB 기반 채용공고 검색 및 근거(Sources) 제공 |
-| ✅ 프론트엔드 | React + Tailwind CSS 기반 입력/결과 화면 연동 완료 |
+| ✅ RAG 구축 | ChromaDB 기반 채용공고 검색 및 근거(Sources) 제공, 데이터 변경 시 자동 캐시 갱신 |
+| ✅ 에러 처리 | Provider별 예외를 공통 타입(RateLimit/Auth/Connection/Timeout)으로 정규화하는 어댑터 구조 |
+| ✅ 프론트엔드 | React + Tailwind CSS 기반 입력/결과 화면 연동, 채용 사이트 스타일 UI |
+| ✅ 문서화 | Claude/Cursor/Gemini/Continue 공용 개발 하네스(`harness/`) 구축 |
+
+### 오늘 진행한 주요 작업 (2026-07-06)
+
+**🐛 버그 수정**
+- `preprocess.py` 마감일 파싱: `"26.09.10"` 같은 점(`.`) 구분 날짜 포맷을 못 읽던 문제 수정
+- ChromaDB 캐시가 최초 1회 이후 절대 갱신되지 않던 문제 → 파일 해시 비교 기반 자동 재로드로 수정
+- `sources`의 `required_skills`가 항상 빈 값이던 문제(메타데이터 누락) 수정
+- Gemini SDK의 `ResourceExhausted` 예외가 429로 분류 안 되던 에러 어댑터 버그 수정
+
+**🧹 코드 정리 (Dead Code 제거)**
+- 실사용되지 않던 `/jobs` 라우터, 중복 스모크테스트 스크립트(`test_search.py`) 삭제
+- 아무 데서도 읽지 않던 SQLite 저장 파이프라인 전체 제거 → 채용데이터 흐름을 ChromaDB 단일 경로로 통일
+- 미사용 import, 항상 `False`였던 `is_startup` 필드 제거
+
+**🔗 RAG · 프론트-백엔드 연동**
+- `experience_years`(경력), `preferred_company_size`(선호 기업 형태) 입력을 프론트엔드까지 연결해 실제 분석 프롬프트에 반영
+- `distance`(유사도 거리) 원시값 대신 "관련도 %" + 색상 배지로 사용자 친화적으로 변환
+
+**🛡️ 에러 처리 리팩토링**
+- Gemini/Mistral/Ollama/HuggingFace 4개 Provider의 서로 다른 예외를 문자열 매칭 대신 공통 예외 타입(`RateLimitError`, `AuthError`, `ProviderConnectionError`, `ProviderTimeoutError`)으로 정규화
+
+**🎨 UI 개선**
+- 상단 로고 헤더, 채용 필터 스타일 입력 폼, 회사 아바타·스킬 태그·관련도 배지가 있는 채용 리스팅 스타일로 개선
+- AI 답변을 "현재 역량 평가 / 추천 공고 / 부족한 역량" 3개 섹션으로 파싱해 표시 (형식이 다르면 원문 그대로 폴백)
+
+**📚 문서화**
+- Claude Code / Cursor / Gemini / Continue / Google AI Studio가 공통으로 참조하는 `harness/` 문서 체계 구축 (`MAIN_HARNESS.md`, `ROUTING.md`, 역할별 agent/skill/check 파일)
+- 문서에 남아있던 실제 코드와 어긋나는 내용(존재하지 않는 API 필드, 깨진 파일 참조 등) 정리
 
 ### 2일차 학습 노트
 
