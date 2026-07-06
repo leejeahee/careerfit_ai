@@ -148,7 +148,7 @@ npm run dev
 - Claude Code / Cursor / Gemini / Continue / Google AI Studio가 공통으로 참조하는 `harness/` 문서 체계 구축 (`MAIN_HARNESS.md`, `ROUTING.md`, 역할별 agent/skill/check 파일)
 - 문서에 남아있던 실제 코드와 어긋나는 내용(존재하지 않는 API 필드, 깨진 파일 참조 등) 정리
 
-### 2일차 학습 노트
+### 학습 노트
 
 #### Mock Mode
 > API가 다운됐을 때 서비스 중단을 막는 안전망
