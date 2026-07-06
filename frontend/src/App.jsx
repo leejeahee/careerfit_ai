@@ -25,6 +25,8 @@ function App() {
           major: formData.major,
           skills: formData.skills,
           job_type: formData.jobType,
+          experience_years: formData.experienceYears,
+          preferred_company_size: formData.preferredCompanySize,
         }),
       });
 

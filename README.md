@@ -16,7 +16,7 @@
 
 ## ✨ 주요 기능 (Key Features)
 - **맞춤형 커리어 코칭**: 사용자의 전공/스킬 정보를 분석하여 지원 가능 직무 및 부족한 역량 가이드 제공
-- **신뢰성 있는 정보 제공 (RAG 도입 예정)**: 생성형 AI의 한계를 극복하고 실제 데이터 기반 출처(Sources) 제공
+- **신뢰성 있는 정보 제공 (RAG 구축 완료)**: ChromaDB 기반 RAG로 생성형 AI의 한계를 극복하고 실제 채용 데이터 출처(Sources) 제공
 - **안정적인 서비스 구조**: API 장애 시에도 서비스가 중단되지 않는 Mock Mode 지원
 
 ### 🚀 향후 확장 계획
@@ -30,9 +30,9 @@
 | 영역 | 기술 |
 |---|---|
 | **백엔드** | Python 3.11, FastAPI |
-| **AI API** | Google Gemini 2.5 Flash-Lite |
-| **데이터베이스** | Pandas, SQLite, ChromaDB |
-| **프론트엔드** | React, Vite |
+| **AI API** | Gemini / Mistral / Ollama / HuggingFace (4개 Provider 지원) |
+| **데이터베이스** | Pandas, ChromaDB |
+| **프론트엔드** | React, Vite, Tailwind CSS |
 | **실행 환경** | Docker |
 
 ---
@@ -80,23 +80,24 @@ uvicorn main:app --reload --port 8000
 
 ---
 
-## 📅 진행 현황 및 2일차 학습 내용
+## 📅 진행 현황
 
 - [x] **1일차**: 프로젝트 기획 및 개발 환경 세팅
 - [x] **2일차**: FastAPI 서버 구축 및 Gemini API 연결
-- [ ] **3일차**: 데이터 파이프라인 구축
-- [ ] **4일차**: RAG 기반 서비스 + React UI
+- [x] **3일차**: 데이터 파이프라인 구축
+- [x] **4일차**: RAG 기반 서비스 + React UI 연동 완료
 - [ ] **5일차**: Docker + 포트폴리오 완성
 
-### 2일차 완료 내용
+### 완료 내용
 
 | 항목 | 내용 |
 |------|------|
 | ✅ 개발 환경 | Python 가상환경 및 FastAPI 서버 구성 |
-| ✅ API 엔드포인트 | `/health`, `/jobs`, `/analyze` 구현 |
-| ✅ AI 연동 | Gemini 2.5 Flash-Lite API 연결 |
+| ✅ API 엔드포인트 | `/health`, `/analyze` 구현 |
+| ✅ AI 연동 | Gemini/Mistral/Ollama/HuggingFace 4개 Provider 지원 |
 | ✅ Mock Mode | `MOCK_MODE` 환경변수로 API 없이 테스트 가능 |
-| ✅ 기반 구축 | RAG 기능 구현을 위한 백엔드 구조 완성 |
+| ✅ RAG 구축 | ChromaDB 기반 채용공고 검색 및 근거(Sources) 제공 |
+| ✅ 프론트엔드 | React + Tailwind CSS 기반 입력/결과 화면 연동 완료 |
 
 ### 2일차 학습 노트
 
@@ -112,5 +113,5 @@ uvicorn main:app --reload --port 8000
 #### 프론트엔드: React
 > 키오스크 화면 — 사용자가 직접 보고 조작하는 영역
 - **미들웨어 (CORSMiddleware)**: 프론트와 백엔드를 이어주는 검문소
-- **라우터**: 손님 요청을 담당 코너로 분류하는 안내판 (한식 → `/jobs`, 양식 → `/analyze`)
+- **라우터**: 손님 요청을 담당 코너로 분류하는 안내판 (`/health`, `/analyze`)
 - **목업 데이터**: 실제 DB 연결 전 사용하는 임시 가짜 데이터

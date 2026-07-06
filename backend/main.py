@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import health
-from routers import jobs
 from routers import analyze
 from services import rag_service
 # FastAPI 앱 객체 생성
@@ -22,7 +21,6 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
-app.include_router(jobs.router)
 app.include_router(analyze.router)
 # 라우터 등록은 실습 4·5·6에서 추가한다
 

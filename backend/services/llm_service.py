@@ -192,7 +192,7 @@ def call_gemini(prompt: str) -> str:
     """
 
     if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY가 .env에 없습니다.")
+        raise AuthError("GEMINI_API_KEY가 .env에 없습니다.")
 
     import google.generativeai as genai
 
@@ -202,7 +202,10 @@ def call_gemini(prompt: str) -> str:
     # .env의 LLM_MODEL 값을 사용합니다.
     model = genai.GenerativeModel(PROVIDER_MODEL)
 
-    response = model.generate_content(prompt)
+    try:
+        response = model.generate_content(prompt)
+    except Exception as e:
+        raise _classify_provider_error(e) from e
 
     return response.text
 
@@ -220,7 +223,7 @@ def call_mistral(prompt: str) -> str:
     """
 
     if not MISTRAL_API_KEY:
-        raise ValueError("MISTRAL_API_KEY가 .env에 없습니다.")
+        raise AuthError("MISTRAL_API_KEY가 .env에 없습니다.")
 
     url = "https://api.mistral.ai/v1/chat/completions"
 
@@ -239,14 +242,16 @@ def call_mistral(prompt: str) -> str:
         ],
     }
 
-    response = requests.post(
-        url,
-        headers=headers,
-        json=payload,
-        timeout=60,
-    )
-
-    response.raise_for_status()
+    try:
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=60,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise _classify_provider_error(e) from e
 
     data = response.json()
 
@@ -297,17 +302,20 @@ def call_ollama(prompt: str) -> str:
 
         return data["response"]
 
-    except requests.exceptions.ConnectionError:
-        raise ConnectionError(
+    except requests.exceptions.ConnectionError as e:
+        raise ProviderConnectionError(
             "Ollama 서버에 연결할 수 없습니다. "
             "`ollama serve` 또는 `ollama run llama3.2:3b`를 실행했는지 확인하세요."
-        )
+        ) from e
 
-    except requests.exceptions.Timeout:
-        raise TimeoutError(
+    except requests.exceptions.Timeout as e:
+        raise ProviderTimeoutError(
             "Ollama 응답 시간이 초과되었습니다. "
             "더 작은 모델을 사용하거나 timeout 값을 늘려보세요."
-        )
+        ) from e
+
+    except requests.exceptions.RequestException as e:
+        raise _classify_provider_error(e) from e
 
 
 # =========================
@@ -324,7 +332,7 @@ def call_huggingface(prompt: str) -> str:
     """
 
     if not HUGGINGFACE_TOKEN:
-        raise ValueError("HUGGINGFACE_TOKEN이 .env에 없습니다.")
+        raise AuthError("HUGGINGFACE_TOKEN이 .env에 없습니다.")
 
     from huggingface_hub import InferenceClient
 
@@ -333,15 +341,18 @@ def call_huggingface(prompt: str) -> str:
         token=HUGGINGFACE_TOKEN,
     )
 
-    response = client.chat_completion(
-        messages=[
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ],
-        max_tokens=700,
-    )
+    try:
+        response = client.chat_completion(
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            max_tokens=700,
+        )
+    except Exception as e:
+        raise _classify_provider_error(e) from e
 
     message = response.choices[0].message
 
@@ -355,27 +366,54 @@ def call_huggingface(prompt: str) -> str:
 # 9. provider에 따라 실제 LLM 호출
 # =========================
 
-def _is_rate_limit_error(e: Exception) -> bool:
+class LLMError(Exception):
+    """모든 LLM Provider 공통 에러의 기반 클래스."""
+
+
+class RateLimitError(LLMError):
+    """API 사용량/요청 한도 초과 (HTTP 429)."""
+
+
+class AuthError(LLMError):
+    """인증 실패 — API Key/Token이 없거나 유효하지 않음."""
+
+
+class ProviderConnectionError(LLMError):
+    """Provider 서버에 연결할 수 없음."""
+
+
+class ProviderTimeoutError(LLMError):
+    """Provider 응답이 제한 시간 내에 오지 않음."""
+
+
+def _classify_provider_error(e: Exception) -> LLMError:
     """
-    provider별로 다른 예외 타입에서 rate-limit(429) 여부를 판단합니다.
-    가능하면 실제 HTTP status_code를 보고, 없으면 알려진 에러 문구로 보조 판단합니다.
+    Provider별로 다른 예외(requests의 HTTPError, huggingface_hub/Gemini SDK 예외 등)를
+    공통 LLMError 계열로 변환하는 어댑터입니다.
+    가능하면 실제 HTTP status_code를 우선 보고, 없으면 알려진 에러 문구로 보조 판단합니다.
     """
-    status_code = getattr(getattr(e, "response", None), "status_code", None)
-    if status_code == 429:
-        return True
-
+    # requests 계열(Mistral/HuggingFace)은 e.response.status_code,
+    # google-generativeai/api_core 계열(Gemini)은 e.code에 HTTP 상태코드를 담습니다.
+    status_code = getattr(getattr(e, "response", None), "status_code", None) or getattr(e, "code", None)
     error_msg = str(e)
-    return "RESOURCE_EXHAUSTED" in error_msg or "429 Client Error" in error_msg or "429 Too Many Requests" in error_msg
 
+    if (
+        status_code == 429
+        or "RESOURCE_EXHAUSTED" in error_msg
+        or "429 Client Error" in error_msg
+        or "429 Too Many Requests" in error_msg
+    ):
+        return RateLimitError(error_msg)
 
-def _is_huggingface_auth_error(e: Exception) -> bool:
-    """HuggingFace 토큰 인증 실패(401/403) 여부를 판단합니다."""
-    status_code = getattr(getattr(e, "response", None), "status_code", None)
-    if status_code in (401, 403):
-        return True
+    if (
+        status_code in (401, 403)
+        or "401 Client Error" in error_msg
+        or "403 Client Error" in error_msg
+        or "Invalid username or password" in error_msg
+    ):
+        return AuthError(error_msg)
 
-    error_msg = str(e)
-    return "401 Client Error" in error_msg or "403 Client Error" in error_msg or "Invalid username or password" in error_msg
+    return LLMError(error_msg)
 
 
 def call_llm(prompt: str) -> str:
@@ -443,60 +481,36 @@ def get_llm_response(query: str, context_docs: list) -> dict:
             "sources": sources,
         }
 
-    except Exception as e:
-        error_msg = str(e)
+    except RateLimitError:
+        return {
+            "answer": (
+                "[API 한도 초과] 현재 선택된 LLM API 한도에 도달했습니다. "
+                ".env에서 MOCK_MODE=true로 전환하거나 "
+                "LLM_MODEL을 다른 모델로 바꿔보세요."
+            ),
+            "sources": sources,
+        }
 
-        # API 한도 초과 계열 오류 처리
-        if _is_rate_limit_error(e):
-            return {
-                "answer": (
-                    "[API 한도 초과] 현재 선택된 LLM API 한도에 도달했습니다. "
-                    ".env에서 MOCK_MODE=true로 전환하거나 "
-                    "LLM_MODEL을 다른 모델로 바꿔보세요."
-                ),
-                "sources": sources,
-            }
+    except AuthError as e:
+        return {
+            "answer": (
+                f"[인증 오류] {PROVIDER} 인증에 실패했습니다: {e} "
+                ".env에서 해당 provider의 API Key/Token을 확인하세요."
+            ),
+            "sources": sources,
+        }
 
-        # HuggingFace 토큰 인증 실패 가능성
-        if PROVIDER == "huggingface" and _is_huggingface_auth_error(e):
-            return {
-                "answer": (
-                    "[HuggingFace 인증 오류] HUGGINGFACE_TOKEN이 유효하지 않습니다. "
-                    "huggingface.co에서 토큰을 다시 발급받아 .env를 갱신하세요."
-                ),
-                "sources": sources,
-            }
+    except ProviderConnectionError as e:
+        return {"answer": f"[연결 오류] {e}", "sources": sources}
 
-        # Ollama 서버 미실행 가능성
-        if PROVIDER == "ollama" and (
-            "Ollama 서버에 연결할 수 없습니다" in error_msg
-            or "Connection" in error_msg
-            or "Connection refused" in error_msg
-            or "Max retries exceeded" in error_msg
-        ):
-            return {
-                "answer": (
-                    "[Ollama 연결 오류] Ollama 로컬 서버에 연결할 수 없습니다. "
-                    "터미널에서 `ollama serve` 또는 `ollama run llama3.2:3b`를 실행했는지 확인하세요."
-                ),
-                "sources": sources,
-            }
+    except ProviderTimeoutError as e:
+        return {"answer": f"[시간 초과] {e}", "sources": sources}
 
-        # Ollama timeout 가능성
-        if PROVIDER == "ollama" and "응답 시간이 초과" in error_msg:
-            return {
-                "answer": (
-                    "[Ollama 시간 초과] 로컬 모델 응답이 너무 오래 걸립니다. "
-                    "더 작은 모델을 사용하거나 잠시 후 다시 시도하세요."
-                ),
-                "sources": sources,
-            }
-
-        # 그 외 일반 오류
+    except LLMError as e:
         return {
             "answer": (
                 f"[오류] 현재 모델: {LLM_MODEL}, provider: {PROVIDER}. "
-                f"오류 내용: {error_msg}"
+                f"오류 내용: {e}"
             ),
             "sources": sources,
         }

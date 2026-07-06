@@ -4,10 +4,12 @@ function InputForm({ onSubmit, isLoading }) {
     const [major, setMajor] = useState("");
     const [skillsInput, setSkillsInput] = useState("");
     const [jobType, setJobType] = useState("");
+    const [experienceYears, setExperienceYears] = useState(0);
+    const [preferredCompanySize, setPreferredCompanySize] = useState("무관");
 
     function handleSubmit() {
         const skills = skillsInput.split(",").map(s => s.trim()).filter(Boolean);
-        onSubmit({ major, skills, jobType });
+        onSubmit({ major, skills, jobType, experienceYears, preferredCompanySize });
     }
 
     const parsedSkills = skillsInput.split(",").map(s => s.trim()).filter(Boolean);
@@ -34,6 +36,23 @@ function InputForm({ onSubmit, isLoading }) {
                     <input type="text" value={jobType} onChange={e => setJobType(e.target.value)}
                         placeholder="예: 데이터 분석"
                         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">경력 (년)</label>
+                    <input type="number" min="0" value={experienceYears}
+                        onChange={e => setExperienceYears(Number(e.target.value))}
+                        placeholder="예: 0"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-1">선호 기업 형태</label>
+                    <select value={preferredCompanySize} onChange={e => setPreferredCompanySize(e.target.value)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="무관">무관</option>
+                        <option value="대기업">대기업</option>
+                        <option value="중견기업">중견기업</option>
+                        <option value="스타트업">스타트업</option>
+                    </select>
                 </div>
                 <button onClick={handleSubmit}
                     disabled={isLoading || !isValid}

@@ -4,12 +4,8 @@
 
 # 실행: backend/ 폴더에서 python data/preprocess.py
 
-from google.ai import generativelanguage_v1beta
-from attr import converters
 import pandas as pd
 import datetime
-
-import sqlite3
 
 import json
 
@@ -22,8 +18,6 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 JOBS_CSV = os.path.join(BASE_DIR, "jobs.csv")
-
-DB_PATH = os.path.join(BASE_DIR, "careerfit.db")
 
 RAG_JSON = os.path.join(BASE_DIR, "rag_documents.json")
 
@@ -263,70 +257,6 @@ def standardize_skills(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def save_to_sqlite(df: pd.DataFrame, db_path: str) -> None:
-    """
-    전처리된 DataFrame을 SQLite 데이터베이스에 저장합니다.
-
-    요리 비유:
-    손질이 끝난 재료를 냉장고(SQLite)에 정리해서 넣는 단계입니다.
-    """
-    print(f"\n=== SQLite 저장 ===")
-
-    conn = sqlite3.connect(db_path)
-
-    # DataFrame을 SQL 테이블로 저장
-    # if_exists="replace": 테이블이 이미 있으면 덮어씁니다
-    df.to_sql("jobs", conn, if_exists="replace", index=False)
-
-    # 저장 확인
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM jobs")
-    count = cursor.fetchone()[0]
-
-    print(f"   ✅ 저장 완료: jobs 테이블에 {count}행 저장됨")
-    print(f"   파일 위치: {db_path}")
-
-    conn.close()
-
-
-def query_sqlite(db_path: str) -> None:
-    """
-    SQLite에서 데이터를 조회해 저장 결과를 확인합니다.
-    """
-    print(f"\n=== SQLite 조회 테스트 ===")
-    conn = sqlite3.connect(db_path)
-
-    # 1. 전체 행 수
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM jobs")
-    print(f"   전체 공고 수: {cursor.fetchone()[0]}개")
-
-    # 2. 직무 분류별 개수
-    print("\n   [직무 분류별 공고 수]")
-    cursor.execute("""
-        SELECT job_type, COUNT(*) as count
-        FROM jobs
-        GROUP BY job_type
-        ORDER BY count DESC
-    """)
-    for row in cursor.fetchall():
-        print(f"   - {row[0]}: {row[1]}개")
-
-    # 3. Python 필수 스킬 공고만 조회
-    print("\n   [Python이 필요한 공고]")
-    cursor.execute("""
-        SELECT company, title, required_skills
-        FROM jobs
-        WHERE required_skills LIKE '%Python%'
-        LIMIT 3
-    """)
-    for row in cursor.fetchall():
-        print(f"   - {row[0]} | {row[1]}")
-        print(f"     스킬: {row[2]}")
-
-    conn.close()
-
-
 def parse_deadline_month(deadline_value) -> int:
     """
     마감일 문자열에서 월(1~12)을 추출합니다.
@@ -373,9 +303,6 @@ def convert_to_rag_documents(df: pd.DataFrame) -> list:
         # 1. 마감월(int) 파싱 (예: "2026-09-30" -> 9, "26.09.10" -> 9)
         deadline_month = parse_deadline_month(row.get("deadline", ""))
 
-        # 2. 스타트업 여부(bool) (데이터에 컬럼이 있으면 활용, 없으면 기본값 False)
-        is_startup = bool(row.get("is_startup", False))
-
         # 3. 최초저장일(str) (현재 날짜)
         first_saved_date = datetime.date.today().isoformat()
 
@@ -388,7 +315,6 @@ def convert_to_rag_documents(df: pd.DataFrame) -> list:
             "deadline": str(row.get("deadline", "")),
             "source": "jobs.csv",
             "deadline_month": deadline_month,
-            "is_startup": is_startup,
             "first_saved_date": first_saved_date,
             "required_skills": str(row.get("required_skills", ""))
         }
@@ -426,8 +352,6 @@ def main():
     df_jobs = handle_missing(df_jobs)
     df_jobs = remove_duplicates(df_jobs)
     df_jobs = standardize_skills(df_jobs)
-    save_to_sqlite(df_jobs, DB_PATH)
-    query_sqlite(DB_PATH)
     rag_docs = convert_to_rag_documents(df_jobs)
     save_rag_documents(rag_docs, RAG_JSON)
 

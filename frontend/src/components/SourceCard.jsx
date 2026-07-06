@@ -10,6 +10,11 @@ function SourceCard({ sources }) {
                     <div key={index} className="border-b border-slate-100 pb-3 last:border-0 last:pb-0">
                         <p className="text-sm font-medium text-slate-700">{source.company} — {source.title}</p>
                         <p className="text-xs text-slate-500 mt-1">필수 스킬: {source.required_skills || "정보 없음"}</p>
+                        {typeof source.distance === "number" && (
+                            <p className="text-xs text-slate-500 mt-1">
+                                관련도 {Math.max(0, Math.min(100, Math.round((1 - source.distance) * 100)))}%
+                            </p>
+                        )}
                     </div>
                 ))}
             </div>
