@@ -7,6 +7,7 @@
 from google.ai import generativelanguage_v1beta
 from attr import converters
 import pandas as pd
+import datetime
 
 import sqlite3
 
@@ -345,6 +346,21 @@ def convert_to_rag_documents(df: pd.DataFrame) -> list:
             f"업무 내용: {row.get('description', '정보 없음')}"
         )
 
+        # 1. 마감월(int) 파싱 (예: "2026-09-30" -> 9)
+        deadline_str = str(row.get("deadline", ""))
+        deadline_month = 0
+        if deadline_str and "-" in deadline_str:
+            try:
+                deadline_month = int(deadline_str.split("-")[1])
+            except ValueError:
+                pass
+
+        # 2. 스타트업 여부(bool) (데이터에 컬럼이 있으면 활용, 없으면 기본값 False)
+        is_startup = bool(row.get("is_startup", False))
+
+        # 3. 최초저장일(str) (현재 날짜)
+        first_saved_date = datetime.date.today().isoformat()
+
         # metadata: 검색 결과를 필터링하거나 출처를 표시할 때 사용합니다
         metadata = {
             "id": str(row.get("id", "")),
@@ -352,7 +368,10 @@ def convert_to_rag_documents(df: pd.DataFrame) -> list:
             "title": str(row.get("title", "")),
             "job_type": str(row.get("job_type", "")),
             "deadline": str(row.get("deadline", "")),
-            "source": "jobs.csv"
+            "source": "jobs.csv",
+            "deadline_month": deadline_month,
+            "is_startup": is_startup,
+            "first_saved_date": first_saved_date
         }
 
         documents.append({
