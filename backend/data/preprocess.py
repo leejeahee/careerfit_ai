@@ -327,6 +327,30 @@ def query_sqlite(db_path: str) -> None:
     conn.close()
 
 
+def parse_deadline_month(deadline_value) -> int:
+    """
+    마감일 문자열에서 월(1~12)을 추출합니다.
+    "2026-09-30"(-), "26.09.10"(.) 두 포맷을 모두 지원하며,
+    결측치("nan", 빈 문자열)나 파싱 불가한 값은 0을 반환합니다.
+    """
+    deadline_str = str(deadline_value).strip()
+    if not deadline_str or deadline_str.lower() == "nan":
+        return 0
+
+    for sep in ("-", "."):
+        if sep in deadline_str:
+            parts = [p for p in deadline_str.split(sep) if p]
+            if len(parts) >= 2:
+                try:
+                    month = int(parts[1])
+                except ValueError:
+                    continue
+                if 1 <= month <= 12:
+                    return month
+
+    return 0
+
+
 def convert_to_rag_documents(df: pd.DataFrame) -> list:
     """
     DataFrame의 각 행을 RAG 검색에 적합한 자연어 문서로 변환합니다.
@@ -346,14 +370,8 @@ def convert_to_rag_documents(df: pd.DataFrame) -> list:
             f"업무 내용: {row.get('description', '정보 없음')}"
         )
 
-        # 1. 마감월(int) 파싱 (예: "2026-09-30" -> 9)
-        deadline_str = str(row.get("deadline", ""))
-        deadline_month = 0
-        if deadline_str and "-" in deadline_str:
-            try:
-                deadline_month = int(deadline_str.split("-")[1])
-            except ValueError:
-                pass
+        # 1. 마감월(int) 파싱 (예: "2026-09-30" -> 9, "26.09.10" -> 9)
+        deadline_month = parse_deadline_month(row.get("deadline", ""))
 
         # 2. 스타트업 여부(bool) (데이터에 컬럼이 있으면 활용, 없으면 기본값 False)
         is_startup = bool(row.get("is_startup", False))
