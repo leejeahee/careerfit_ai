@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers import health
 from routers import jobs
 from routers import analyze
+from services import rag_service
 # FastAPI 앱 객체 생성
 # title과 version은 /docs 페이지에 표시된다
 app = FastAPI(
@@ -24,6 +25,11 @@ app.include_router(health.router)
 app.include_router(jobs.router)
 app.include_router(analyze.router)
 # 라우터 등록은 실습 4·5·6에서 추가한다
+
+@app.on_event("startup")
+def load_rag_collection():
+    """서버 시작 시 ChromaDB 컬렉션을 1회 초기화합니다 (요청마다 재계산하지 않도록)."""
+    rag_service.initialize_collection()
 @app.get("/")
 def root():
     return {"message": "CareerFit AI 서버가 실행 중입니다."}

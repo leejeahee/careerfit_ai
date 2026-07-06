@@ -11,6 +11,8 @@ COLLECTION_DESCRIPTION = "CareerFit AI 취업·공모전 데이터"
 
 client = chromadb.PersistentClient(path=CHROMA_PATH)
 
+_collection: chromadb.Collection | None = None
+
 
 def _file_hash(path: str) -> str:
     """파일 내용의 해시를 계산합니다. rag_documents.json 변경 여부를 감지하는 데 사용합니다."""
@@ -18,11 +20,14 @@ def _file_hash(path: str) -> str:
         return hashlib.sha256(f.read()).hexdigest()
 
 
-def get_or_create_collection() -> chromadb.Collection:
+def initialize_collection() -> chromadb.Collection:
     """
-    ChromaDB 컬렉션을 가져오거나, 비어있거나 rag_documents.json이 바뀌었으면 RAG 문서를 다시 로드합니다.
+    ChromaDB 컬렉션을 준비하고 모듈 캐시에 저장합니다. 서버 시작 시 1회 호출됩니다.
+    비어있거나 rag_documents.json이 바뀌었으면 RAG 문서를 다시 로드합니다.
     요리 비유: 레시피 북을 열고, 비어있거나 레시피 카드가 바뀌었으면 다시 채워넣습니다.
     """
+    global _collection
+
     collection = client.get_or_create_collection(
         name="careerfit_jobs",
         metadata={"description": COLLECTION_DESCRIPTION}
@@ -39,7 +44,18 @@ def get_or_create_collection() -> chromadb.Collection:
             "source_hash": current_hash
         })
 
-    return collection
+    _collection = collection
+    return _collection
+
+
+def get_or_create_collection() -> chromadb.Collection:
+    """
+    캐시된 ChromaDB 컬렉션을 반환합니다. 매 요청마다 파일 해시를 다시 계산하지 않습니다.
+    아직 초기화되지 않았다면(예: FastAPI startup 없이 스크립트에서 바로 호출된 경우) 그때 1회 초기화합니다.
+    """
+    if _collection is None:
+        return initialize_collection()
+    return _collection
 
 
 def _load_documents(collection: chromadb.Collection) -> None:
@@ -71,6 +87,9 @@ def search_documents(query: str, n_results: int = 3) -> list:
         [{"text": str, "metadata": dict, "distance": float}, ...]
     """
     collection = get_or_create_collection()
+
+    if collection.count() == 0:
+        return []
 
     results = collection.query(
         query_texts=[query],

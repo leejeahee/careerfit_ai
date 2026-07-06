@@ -389,7 +389,8 @@ def convert_to_rag_documents(df: pd.DataFrame) -> list:
             "source": "jobs.csv",
             "deadline_month": deadline_month,
             "is_startup": is_startup,
-            "first_saved_date": first_saved_date
+            "first_saved_date": first_saved_date,
+            "required_skills": str(row.get("required_skills", ""))
         }
 
         documents.append({
