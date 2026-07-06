@@ -62,11 +62,20 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-slate-800 mb-2">CareerFit AI</h1>
-        <p className="text-slate-500 text-sm mb-8">취업·공모전 데이터 기반 맞춤형 AI 포트폴리오 코치</p>
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+            CF
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-800 leading-tight">CareerFit AI</h1>
+            <p className="text-slate-500 text-xs">취업·공모전 데이터 기반 맞춤형 AI 포트폴리오 코치</p>
+          </div>
+        </div>
+      </header>
 
+      <main className="max-w-3xl mx-auto px-4 py-10">
         <InputForm onSubmit={handleAnalyze} isLoading={isLoading} />
 
         {error && (
@@ -85,7 +94,7 @@ function App() {
             )}
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
