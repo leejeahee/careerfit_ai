@@ -41,21 +41,34 @@
 
 ## 🏗 아키텍처
 
-```text
-┌──────────────┐      POST /analyze      ┌──────────────────┐
-│   React      │ ───────────────────────▶│   FastAPI        │
-│ (Vite, 5173) │                          │   (main.py)      │
-│              │◀─────────────────────── │                  │
-└──────────────┘   {answer, sources}      └────────┬─────────┘
-                                                    │
-                                     ┌──────────────┴──────────────┐
-                                     ▼                             ▼
-                        rag_service.search_documents      llm_service.get_llm_response
-                        (ChromaDB 벡터 검색)                (RAG 프롬프트 구성 + LLM 호출)
-                                     │                             │
-                                     ▼                             ▼
-                          backend/chroma_db                Gemini / Mistral /
-                        (영속 볼륨, 문서 임베딩)              Ollama / HuggingFace
+```mermaid
+flowchart LR
+    subgraph Client["🖥️ Frontend"]
+        FE["React (Vite · :5173)"]
+    end
+
+    subgraph Server["⚙️ Backend (FastAPI · main.py)"]
+        API(["POST /analyze"])
+        RAG["rag_service<br/>search_documents<br/><small>ChromaDB 벡터 검색</small>"]
+        LLM["llm_service<br/>get_llm_response<br/><small>RAG 프롬프트 구성 + LLM 호출</small>"]
+    end
+
+    DB[("backend/chroma_db<br/>영속 볼륨 · 문서 임베딩")]
+    Providers["Gemini · Mistral<br/>Ollama · HuggingFace"]
+
+    FE -- "전공/스킬/직무/경력" --> API
+    API --> RAG
+    API --> LLM
+    RAG <--> DB
+    LLM <--> Providers
+    LLM -- "answer + sources" --> FE
+
+    style FE fill:#0ea5e9,color:#fff,stroke:none
+    style API fill:#6366f1,color:#fff,stroke:none
+    style RAG fill:#f59e0b,color:#1f2937,stroke:none
+    style LLM fill:#f59e0b,color:#1f2937,stroke:none
+    style DB fill:#10b981,color:#fff,stroke:none
+    style Providers fill:#ec4899,color:#fff,stroke:none
 ```
 
 - **CORS**: FastAPI `CORSMiddleware`가 `localhost:5173`(프론트엔드)의 요청만 허용
