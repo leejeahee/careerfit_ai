@@ -38,8 +38,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=bind,source=requirements.txt,target=requirements.txt \
     python -m pip install --retries 5 --timeout 60 -r requirements.txt
 
-# Allow the non-privileged user to write to /app (e.g. chroma_db created at runtime).
-RUN chown appuser /app
+# Allow the non-privileged user to write to /app, and pre-create chroma_db
+# owned by appuser so Docker seeds the mounted volume with correct ownership
+# instead of a root-owned empty directory.
+RUN mkdir -p /app/chroma_db && chown appuser /app /app/chroma_db
 
 # chromadb downloads its embedding model to $HOME/.cache; appuser's home is
 # "/nonexistent", so point HOME at a writable directory.
@@ -55,7 +57,7 @@ COPY --chown=appuser . .
 EXPOSE 8000
 
 # Check that the app is responding on /health.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=3).status == 200 else 1)"
 
 # Run the application.
